@@ -101,101 +101,98 @@ end
 [y, fs] = audioread("array_recordings.wav");
 
 index_max_freq = ceil( max_freq / (fs/fft_len) ) ; % index equivalent to the value of max-freq
-
-Sz=128;
-stop = floor(length(y)/100);
-
-
-[spectrum, time, freq] = MyStft( y( 1 : stop, :), fs, Sz, fft_len, true);
-% Extract the STFT results for each microphone channel
-
-%%
-
-figure();
-axis tight manual;  % Fix the axis limits
-xlabel('Frequency (Hz)');
-ylabel('Magnitude');
-title('Evolution of FFT in Time');
-
-% Preallocate data for animated plot
-num_steps = 200;
-step_len = floor(size(y, 1) / num_steps);
-f = linspace(0, fs/2, fft_len/2);
-
-figure();
-for i = 1:num_steps
-    disp(['window #' int2str(i)]);
-    data_segment = y((i-1)*step_len+1 : i*step_len, :);
-    
-    % Compute STFT
-    [spectrum, time_axis, freq_axis]  = MyStft(data_segment, fs, Sz, fft_len, false);
-    
-    % Compute average magnitude spectrum
-    %avg_spectrum = mean(abs(spectrum), 3);
-    %fft_avg = avg_spectrum(:, 1);
-
-    for j = 1:size(spectrum, 3)  %Sweeping through the different channels
-            hold off;
-            subplot(2, 8, j);
-            imagesc(time_axis, freq_axis, abs(spectrum(:, :, j)));
-            axis xy;
-            ylim([0 500]);
-            title(sprintf("Channel %d", j));
-            xlabel("Time (ms)");
-            ylabel("Frequency (Hz)");
-    end
-    sgtitle( sprintf('window %d',i) );
-
-
-    freq_bands = freq(4:2:index_max_freq);                  % arbitrarilly select some frequencies for the single band implementation
-    a = zeros(M, length(theta_axis), length(freq_bands));   % create the a matrix (matrix of the Mic rensponses from all directions)
-    cov_estimante_mat = zeros(M , M, length(freq_bands));   % allocate the covariance estimate matrix
-
-    for f = freq_bands
-        a(:, :, freq_bands==f) = exp(-1i*2*pi*f*d*sin(theta_axis*pi/180).*(0:1:M-1).'/c); %computing the propagation terms
-        for t = 1:length(time)-1
-            spec = squeeze(spectrum(freq==f, t, :));                                        % extracts the values of the stft at a specific sample and freq for all the mics
-            cov_estimante_mat(:, :, freq_bands==f) = cov_estimante_mat(:,:,freq_bands==f) + spec*spec'/length(time); % calculates the covariance estimate matrix
-        end
-    end
-    
-    pseudo = zeros(length(freq_bands), length(theta_axis));                                 % allocates the pseudo spectrum matrix
-
-    for f = 1:length(freq_bands)
-        
-        for p = 1:length(theta_axis)
-            pseudo(f,p) = squeeze(a(:,p,f))'*cov_estimante_mat(:, :, f)*a(:,p,f)/M^2;       % calculates the pseudo spectrum matrix
-        end
-    end
-    pseudo_avg = sum(pseudo, 1)/length(freq_bands);                                         % averages the pseudo spectrums for the various freq bands
-    [~, idx] = max(abs(pseudo_avg));                                                        % finds theta as the max of the magnitude of the averaged pseudo spectrums
-    theta(i) = theta_axis(idx);
-
-    %clearpoints(h);
-    %addpoints(h, f, fft_avg);
-    drawnow;
-    %pause(0.1);  % Adjust the pause duration to control the animation speed
-end
+% 
+% Sz=128;
+% stop = floor(length(y)/100);
+% 
+% 
+% [spectrum, time, freq] = MyStft( y( 1 : stop, :), fs, Sz, fft_len, true);
+% % Extract the STFT results for each microphone channel
+% 
+% %%
+% 
+% figure();
+% axis tight manual;  % Fix the axis limits
+% xlabel('Frequency (Hz)');
+% ylabel('Magnitude');
+% title('Evolution of FFT in Time');
+% 
+% % Preallocate data for animated plot
+% num_steps = 200;
+% step_len = floor(size(y, 1) / num_steps);
+% f = linspace(0, fs/2, fft_len/2);
+% 
+% figure();
+% for i = 1:num_steps
+%     disp(['window #' int2str(i)]);
+%     data_segment = y((i-1)*step_len+1 : i*step_len, :);
+% 
+%     % Compute STFT
+%     [spectrum, time_axis, freq_axis]  = MyStft(data_segment, fs, Sz, fft_len, false);
+% 
+%     % Compute average magnitude spectrum
+%     %avg_spectrum = mean(abs(spectrum), 3);
+%     %fft_avg = avg_spectrum(:, 1);
+% 
+%     for j = 1:size(spectrum, 3)  %Sweeping through the different channels
+%             hold off;
+%             subplot(2, 8, j);
+%             imagesc(time_axis, freq_axis, abs(spectrum(:, :, j)));
+%             axis xy;
+%             ylim([0 500]);
+%             title(sprintf("Channel %d", j));
+%             xlabel("Time (ms)");
+%             ylabel("Frequency (Hz)");
+%     end
+%     sgtitle( sprintf('window %d',i) );
+% 
+%     if ( index_max_freq >= length(freq)) 
+%         index_max_freq = length(freq);
+%     end
+% 
+%     freq_bands = freq(4:2:index_max_freq);                  % arbitrarilly select some frequencies for the single band implementation
+%     a = zeros(M, length(theta_axis), length(freq_bands));   % create the a matrix (matrix of the Mic rensponses from all directions)
+%     cov_estimante_mat = zeros(M , M, length(freq_bands));   % allocate the covariance estimate matrix
+% 
+%     for f = freq_bands
+%         a(:, :, freq_bands==f) = exp(-1i*2*pi*f*d*sin(theta_axis*pi/180).*(0:1:M-1).'/c); %computing the propagation terms
+%         for t = 1:length(time_axis)-1
+%             spec = squeeze(spectrum(freq==f, t, :));                                        % extracts the values of the stft at a specific sample and freq for all the mics
+%             cov_estimante_mat(:, :, freq_bands==f) = cov_estimante_mat(:,:,freq_bands==f) + spec*spec'/length(time); % calculates the covariance estimate matrix
+%         end
+%     end
+% 
+%     pseudo = zeros(length(freq_bands), length(theta_axis));                                 % allocates the pseudo spectrum matrix
+% 
+%     for f = 1:length(freq_bands)
+% 
+%         for p = 1:length(theta_axis)
+%             pseudo(f,p) = squeeze(a(:,p,f))'*cov_estimante_mat(:, :, f)*a(:,p,f)/M^2;       % calculates the pseudo spectrum matrix
+%         end
+%     end
+%     pseudo_avg = sum(pseudo, 1)/length(freq_bands);                                         % averages the pseudo spectrums for the various freq bands
+%     [~, idx] = max(abs(pseudo_avg));                                                        % finds theta as the max of the magnitude of the averaged pseudo spectrums
+%     theta(i) = theta_axis(idx);
+% 
+%     %clearpoints(h);
+%     %addpoints(h, f, fft_avg);
+%     drawnow;
+%     %pause(0.1);  % Adjust the pause duration to control the animation speed
+% end
 
 
 
 % Plot the STFT for each microphone channel
 
-
-
-
-
-
 %%
-% y_split = y(1:1000,:);
 [len, n_chans] = size(y);
 steps = 100;
 theta = zeros(steps,1);
 step_len = floor(len/steps);
 
-for i = 1:step
+for i = 1:steps
     disp(i);
-    [spectrum, time, freq] = MyStft( y( (i-1)*step_len+1 : i*step_len, :), fs, Sz, fft_len, true);    % application of stft
+    [spectrum, time, freq] = MyStft( y( (i-1)*step_len+1 : i*step_len, :), fs, Sz, fft_len, false);    % application of stft
 
     %Checking the number of index where the estimation is relevant
     if ( index_max_freq >= length(freq) ) 
@@ -203,11 +200,9 @@ for i = 1:step
     end
 
     freq_bands = freq(4:2:index_max_freq);                                               % arbitrarilly select some frequencies for the single band implementation
-    a = zeros(M, length(theta_axis), length(freq_bands));                                   % create the a matrix (matrix of the Mic rensponses from all directions)
     cov_estimante_mat = zeros(M , M, length(freq_bands));                                   % allocate the covariance estimate matrix
 
     for f = freq_bands
-        a(:, :, freq_bands==f) = exp(-1i*2*pi*f*d*sin(theta_axis*pi/180).*(0:1:M-1).'/c); %computing the propagation terms
         for t = 1:length(time)-1
             spec = squeeze(spectrum(freq==f, t, :));                                        % extracts the values of the stft at a specific sample and freq for all the mics
             cov_estimante_mat(:, :, freq_bands==f) = cov_estimante_mat(:,:,freq_bands==f) + spec*spec'/length(time); % calculates the covariance estimate matrix
@@ -215,15 +210,16 @@ for i = 1:step
     end
     
     pseudo = zeros(length(freq_bands), length(theta_axis));                                 % allocates the pseudo spectrum matrix
+    a_vec = zeros(M,1);
 
     for f = 1:length(freq_bands)
-        
         for p = 1:length(theta_axis)
-            pseudo(f,p) = squeeze(a(:,p,f))'*cov_estimante_mat(:, :, f)*a(:,p,f)/M^2;       % calculates the pseudo spectrum matrix
+            a_vec = exp(-1i*2*pi*freq_bands(f)*d*sin(theta_axis(p)*pi/180).*(0:1:M-1).'/c);
+            pseudo(f,p) = a_vec'*cov_estimante_mat(:, :, f)*a_vec/M^2;
         end
     end
     pseudo_avg = sum(pseudo, 1)/length(freq_bands);                                         % averages the pseudo spectrums for the various freq bands
     [~, idx] = max(abs(pseudo_avg));                                                        % finds theta as the max of the magnitude of the averaged pseudo spectrums
     theta(i) = theta_axis(idx);
 end
-theta';
+theta'
