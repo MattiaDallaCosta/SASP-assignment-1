@@ -16,10 +16,10 @@ max_freq = c/(2*d); % maximum carrier frequency
 
 
 % stft window
-Sz = 128;           % [samples] size of the rectangular window
+Sz = 256;           % [samples] size of the rectangular window
 Hop = 1;            % [samples] hopsize
-fft_len = 2048;
-theta_axis = 0:2:180;
+fft_len = 1024;
+theta_axis = -90:1:90;
 theta_rad_axis = 0 : 2*pi/180 :  pi ;
 
 
@@ -106,7 +106,7 @@ index_max_freq = floor( (max_freq/fs) * (fft_len) ) ; % index equivalent to the 
 stop = floor(length(y)/100);
 
 
-[spectrum, time, freq] = MyStft( y( 1 : stop, :), fs, Sz, fft_len, true);
+%%[spectrum, time, freq] = MyStft( y( 1 : stop, :), fs, Sz, fft_len, true);
 % Extract the STFT results for each microphone channel
 
 %%
@@ -187,11 +187,11 @@ end
 
 
 %%
-% y_split = y(1:1000,:);
 [len, n_chans] = size(y);
-steps = 100;
-%theta = zeros(steps,1);
+steps = 200;
+theta = zeros(steps,1);
 step_len = floor(len/steps);
+pseudo_tot = zeros(steps,length(theta_axis));
 
 for i = 1:steps
     disp(i);
@@ -203,14 +203,12 @@ for i = 1:steps
     end
 
     freq_bands = freq(4:2:index_max_freq);                                               % arbitrarilly select some frequencies for the single band implementation
-    a = zeros(M, length(theta_axis), length(freq_bands));                                   % create the a matrix (matrix of the Mic rensponses from all directions)
     cov_estimante_mat = zeros(M , M, length(freq_bands));                                   % allocate the covariance estimate matrix
 
     for f = freq_bands
         %disp(['current f: ' num2str(f)]);
             %test = exp(-1i*2*pi*f*d*sin(theta_axis*pi/180));
             %test2 = test.* (0:1:M-1)';
-        a(:, :, freq_bands==f) = exp(-1i*2*pi*f*d*sin(theta_axis*pi/180) .* (0:1:M-1).'/c); %computing the propagation terms
         for t = 1:length(time)-1
             spec = squeeze(spectrum(freq==f, t, :));                                        % extracts the values of the stft at a specific sample and freq for all the mics
             cov_estimante_mat(:, :, freq_bands==f) = cov_estimante_mat(:,:,freq_bands==f) + spec*spec'/length(time); % calculates the covariance estimate matrix
@@ -218,31 +216,37 @@ for i = 1:steps
     end
     
     pseudo = zeros(length(freq_bands), length(theta_axis));                                 % allocates the pseudo spectrum matrix
+    a_vec = zeros(M,1);
 
     for f = 1:length(freq_bands)
         for p = 1:length(theta_axis)
-            pseudo(f,p) = squeeze(a(:,p,f))' * cov_estimante_mat(:, :, f) * a(:,p,f) / M^2;       % calculates the pseudo spectrum matrix
+            a_vec = exp(-1i*2*pi*freq_bands(f)*d*sin(theta_axis(p)*pi/180) .* (0:1:M-1).'/c);
+            pseudo(f,p) = a_vec' * cov_estimante_mat(:, :, f) * a_vec/ M^2;                % calculates the pseudo spectrum matrix
         end
     end
-    pseudo_avg = sum(pseudo, 1)/length(freq_bands);                                       % averages the pseudo spectrums for the various freq bands
+    pseudo_avg = sum(pseudo, 1)/length(freq_bands);                                        % averages the pseudo spectrums for the various freq bands
     pseudo_avg_abs = abs(pseudo_avg);
-
-
-    figure();
-    polarplot(theta_rad_axis, pseudo_avg_abs );
-    %thetalabel("theta");
-    %rlabel("angular realignment");
-    titleStr = [ "Pseudo spectrum for window " num2str(i) ];
-    title(titleStr);
-
-    figure();
-    plot(theta_rad_axis, pseudo_avg_abs );
-    xlabel("theta");
-    ylabel("angular realignment");
-    titleStr = [ "Pseudo spectrum for window " num2str(i) ];
-    title(titleStr);
-    
+    pseudo_tot(i,:) = pseudo_avg;
+        
     [~, idx] = max(abs(pseudo_avg));                                                        % finds theta as the max of the magnitude of the averaged pseudo spectrums
     theta(i) = theta_axis(idx);
 end
 theta';
+
+pseudo_tot = abs(pseudo_tot);
+pseudo_tot = pseudo_tot./max(pseudo_tot, [], 2);
+steps_axis = linspace(0,len/fs,steps);
+
+figure();
+subplot(2,1,1);
+imagesc(steps_axis, theta_axis, pseudo_tot');
+ylabel("DOA[degs]");
+xlabel("time [s]");
+title("Averages NormalizPseudo Spectrum");
+
+subplot(2,1,2);
+plot(steps_axis, theta);
+ylabel("Angle of arrival [rad]");
+xlabel("time [s]");
+title("Angles of arrival");
+
