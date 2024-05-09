@@ -89,7 +89,7 @@ function [freqs, time_axis, freq_axis] = MyStft(in, samp_freq, wlen, fft_len, pl
         end
         sgtitle(sprintf("STFT of each mic signal, wlen = %d & fft_ len = %d", wlen, fft_len));
     elseif plotme == false
-        disp("No plots required");
+        %disp("No plots required");
     else 
         error("Unrecognized verbose plotme");
     end
@@ -291,6 +291,7 @@ dy = arrow_length * sin(theta);
 hold on;
 quiver(theta_axis, rho, dx, dy, 0, 'Color', 'r', 'LineWidth', 2);
 hold off; 
+title('Arrow pointing at the source, time : %.4f', i*len/(steps*fs, ' s');
 %}
 
 %% 
