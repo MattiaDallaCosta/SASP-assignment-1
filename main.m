@@ -1,3 +1,5 @@
+%% Clearance
+
 clc;
 clear;
 close all;
@@ -95,8 +97,7 @@ function [freqs, time_axis, freq_axis] = MyStft(in, samp_freq, wlen, fft_len, pl
 end
 
 
-%% CALCULATIONS
-
+%% File extraction
 
 
 [y, fs] = audioread("array_recordings.wav");
@@ -109,7 +110,8 @@ stop = floor(length(y)/100);
 %%[spectrum, time, freq] = MyStft( y( 1 : stop, :), fs, Sz, fft_len, true);
 % Extract the STFT results for each microphone channel
 
-%%
+%% Temporary
+
 %{
 figure();
 axis tight manual;  % Fix the axis limits
@@ -186,7 +188,7 @@ end
 
 
 
-%%
+%% Computing the pseudo spectrum
 [len, n_chans] = size(y);
 steps = 200;
 theta = zeros(steps,1);
@@ -202,7 +204,7 @@ for i = 1:steps
         index_max_freq = length(freq);
     end
 
-    freq_bands = freq(4:2:index_max_freq);                                               % arbitrarilly select some frequencies for the single band implementation
+    freq_bands = freq(4:2:index_max_freq);% arbitrarilly select some frequencies for the single band implementation
     cov_estimante_mat = zeros(M , M, length(freq_bands));                                   % allocate the covariance estimate matrix
 
     for f = freq_bands
@@ -221,32 +223,88 @@ for i = 1:steps
     for f = 1:length(freq_bands)
         for p = 1:length(theta_axis)
             a_vec = exp(-1i*2*pi*freq_bands(f)*d*sin(theta_axis(p)*pi/180) .* (0:1:M-1).'/c);
-            pseudo(f,p) = a_vec' * cov_estimante_mat(:, :, f) * a_vec/ M^2;                % calculates the pseudo spectrum matrix
+            pseudo(f,p) = a_vec' * cov_estimante_mat(:, :, f) * a_vec/ M^2; % calculates the pseudo spectrum matrix
         end
     end
-    pseudo_avg = sum(pseudo, 1)/length(freq_bands);                                        % averages the pseudo spectrums for the various freq bands
+    pseudo_avg = sum(pseudo, 1)/length(freq_bands); % averages the pseudo spectrums for the various freq bands
     pseudo_avg_abs = abs(pseudo_avg);
     pseudo_tot(i,:) = pseudo_avg;
         
-    [~, idx] = max(abs(pseudo_avg));                                                        % finds theta as the max of the magnitude of the averaged pseudo spectrums
+    [~, idx] = max(abs(pseudo_avg)); % finds theta as the max of the magnitude of the averaged pseudo spectrums
     theta(i) = theta_axis(idx);
 end
 theta';
 
+%% Plotting the acquired pseudo spectrum
+
 pseudo_tot = abs(pseudo_tot);
 pseudo_tot = pseudo_tot./max(pseudo_tot, [], 2);
-steps_axis = linspace(0,len/fs,steps);
+steps_axis = linspace(0,len/fs,steps);  %[s]
 
+rotated_theta = mod(theta_axis*pi/180 + pi/2, 2*pi);
+figure();
+for i = 1:steps
+    polarplot( rotated_theta, pseudo_tot(i,:));
+    titleStr = ['Pseudo spectrum for window #' num2str(i), ' time : ', num2str(i*len/(steps*fs)), ' s' ];
+    title(titleStr);
+    hold off;
+    pause(0.08);
+end
+
+
+
+
+
+%% Other plots
 figure();
 subplot(2,1,1);
-imagesc(steps_axis, theta_axis, pseudo_tot');
+imagesc(steps_axis,theta_axis, pseudo_tot');
 ylabel("DOA[degs]");
 xlabel("time [s]");
 title("Averages NormalizPseudo Spectrum");
 
 subplot(2,1,2);
 plot(steps_axis, theta);
-ylabel("Angle of arrival [rad]");
+ylabel("Angle of arrival [deg]");
 xlabel("time [s]");
 title("Angles of arrival");
 
+
+%% Animation - To do 
+
+
+
+% 1st snippets
+%{
+rho = sin(2*theta_axis*pi/180); % Corresponding radial distances
+
+% Calculate x and y components of vectors
+x = rho.* cos(theta*pi/180); % x component
+y = rho.* sin(theta*pi/180); % y component
+
+% Calculate arrow lengths (optional)
+arrow_length = 0.1; % Adjust arrow length as needed
+dx = arrow_length * cos(theta);
+dy = arrow_length * sin(theta);
+
+% Plot arrows using quiver function
+hold on;
+quiver(theta_axis, rho, dx, dy, 0, 'Color', 'r', 'LineWidth', 2);
+hold off; 
+%}
+
+%% 
+% Plot quiver plot
+
+% Calculate x and y components of vectors
+x = cos(theta*pi/180); % x component
+y = sin(theta*pi/180); % y component
+
+figure();
+quiver(steps_axis', zeros(size(steps_axis)), x, y);%, 'Color', 'b', 'LineStyle', '--', 'AutoScaleFactor', 0.5);
+xlabel('Time [s]');
+ylabel('Direction estimation from the origin');
+title('Time Evolution of Angle of Arrival');
+
+%set(gca, 'XLim', [min(steps_axis), max(steps_axis)], 'YLim', [-1.2, 1.2], 'LineWidth', 1.5, 'TickLength', [0.02, 0.02]);
+grid on;
